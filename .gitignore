@@ -1,0 +1,41 @@
+# ========================
+# Flutter / Dart
+# ========================
+mobile/.dart_tool/
+mobile/.packages
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/*.iml
+
+# ========================
+# Node / React
+# ========================
+web/node_modules/
+web/dist/
+web/.env
+web/.env.local
+
+# ========================
+# Python
+# ========================
+backend/venv/
+backend/__pycache__/
+backend/app/__pycache__/
+backend/app/**/__pycache__/
+backend/*.pyc
+backend/.env
+backend/app.db
+
+# ========================
+# IDE
+# ========================
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store

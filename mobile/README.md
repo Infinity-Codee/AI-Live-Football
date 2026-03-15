@@ -1,4 +1,4 @@
-# mobile
+# footai_insight
 
 A new Flutter project.
 

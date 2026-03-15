@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL Database ─────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: footai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: footai
+      POSTGRES_PASSWORD: footai_pass
+      POSTGRES_DB: footai_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U footai -d footai_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis Cache ─────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: footai-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI Backend ─────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: footai-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://footai:footai_pass@postgres:5432/footai_db
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+volumes:
+  postgres_data:
+  redis_data:

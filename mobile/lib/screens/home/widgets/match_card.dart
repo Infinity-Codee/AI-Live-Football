@@ -1,12 +1,10 @@
-/// Match Card — displays a single match with team logos, score, status, and golden lock
+/// Match Card — displays a single match with team logos, score, and status
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
+import '../../../config/app_strings.dart';
 import '../../../models/match.dart';
-import '../../../providers/subscription_provider.dart';
-import '../../../providers/wallet_provider.dart';
 
 class MatchCard extends StatelessWidget {
   final MatchModel match;
@@ -53,10 +51,10 @@ class MatchCard extends StatelessWidget {
                 Expanded(child: _buildTeam(match.awayTeam, match.awayLogo, false)),
               ],
             ),
-            // Golden lock for live matches
+            // AI insights badge for live matches (free for everyone)
             if (match.isLive) ...[
               const SizedBox(height: 10),
-              _buildLockOrUnlocked(context),
+              _buildInsightsBadge(),
             ],
           ],
         ),
@@ -66,9 +64,9 @@ class MatchCard extends StatelessWidget {
 
   Widget _buildStatus() {
     if (match.isFinished) {
-      return const Text(
-        'Full Time',
-        style: TextStyle(color: AppTheme.grey, fontSize: 12),
+      return Text(
+        tr('match.ft'),
+        style: const TextStyle(color: AppTheme.grey, fontSize: 12),
       );
     }
     if (match.isLive) {
@@ -107,9 +105,9 @@ class MatchCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          const Text(
-            'LIVE',
-            style: TextStyle(
+          Text(
+            tr('match.live'),
+            style: const TextStyle(
               color: AppTheme.live,
               fontSize: 10,
               fontWeight: FontWeight.w700,
@@ -156,9 +154,9 @@ class MatchCard extends StatelessWidget {
     if (match.isNotStarted) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: const Text(
-          'VS',
-          style: TextStyle(
+        child: Text(
+          tr('match.vs'),
+          style: const TextStyle(
             color: AppTheme.grey,
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -183,51 +181,23 @@ class MatchCard extends StatelessWidget {
     );
   }
 
-  Widget _buildLockOrUnlocked(BuildContext context) {
-    final wallet = context.watch<WalletProvider>();
-    final sub = context.watch<SubscriptionProvider>();
-    final unlocked = sub.isPro || wallet.isMatchUnlocked(match.id);
-
-    if (unlocked) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppTheme.primary.withValues(alpha: 0.15),
-          borderRadius: AppTheme.radiusSm,
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.lock_open, size: 14, color: AppTheme.primary),
-            SizedBox(width: 6),
-            Text(
-              'AI Insights Available',
-              style: TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      );
-    }
-
+  Widget _buildInsightsBadge() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        gradient: AppTheme.goldGradient,
+        color: AppTheme.primary.withValues(alpha: 0.15),
         borderRadius: AppTheme.radiusSm,
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.lock, size: 14, color: Colors.black87),
-          SizedBox(width: 6),
+          const Icon(Icons.insights, size: 14, color: AppTheme.primary),
+          const SizedBox(width: 6),
           Text(
-            'Unlock AI Predictions',
-            style: TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.w600),
+            tr('match.aiAvailable'),
+            style: const TextStyle(
+                color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w600),
           ),
-          SizedBox(width: 4),
-          Icon(Icons.toll, size: 14, color: Colors.black87),
-          SizedBox(width: 2),
-          Text('1', style: TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.w700)),
         ],
       ),
     );

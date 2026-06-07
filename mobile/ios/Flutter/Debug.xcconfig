@@ -1,2 +1,5 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
 #include "Generated.xcconfig"
+
+// Code signing — personal Apple ID team (free provisioning) for on-device runs.
+DEVELOPMENT_TEAM = M7929Z255F

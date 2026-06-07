@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../config/theme.dart';
+import '../../../config/app_strings.dart';
 import '../../../models/prediction.dart';
 
 class MomentumChart extends StatelessWidget {
@@ -27,11 +28,11 @@ class MomentumChart extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _legendDot('Home Win', AppTheme.homeWin),
+              _legendDot(tr('momentum.homeWin'), AppTheme.homeWin),
               const SizedBox(width: 16),
-              _legendDot('Draw', AppTheme.draw),
+              _legendDot(tr('momentum.draw'), AppTheme.draw),
               const SizedBox(width: 16),
-              _legendDot('Away Win', AppTheme.awayWin),
+              _legendDot(tr('momentum.awayWin'), AppTheme.awayWin),
             ],
           ),
           const SizedBox(height: 16),

@@ -49,8 +49,8 @@ class FootballApiService:
             fixture = item.get("fixture", {})
             league = item.get("league", {})
 
-            # 🔴 Filter tests for La Liga (140) and Premier League (39) ONLY
-            if league.get("id") not in [39, 140]:
+            # Only keep the leagues the app advertises (empty list = keep all).
+            if settings.target_league_ids and league.get("id") not in settings.target_league_ids:
                 continue
 
             teams = item.get("teams", {})
@@ -167,8 +167,10 @@ class FootballApiService:
             "away_team": teams.get("away", {}).get("name", ""),
         }
 
-    async def fetch_standings(self, league_id: int, season: int = 2024) -> list[dict]:
-        """Fetch league standings."""
+    async def fetch_standings(self, league_id: int, season: int | None = None) -> list[dict]:
+        """Fetch league standings (defaults to the current season)."""
+        if season is None:
+            season = settings.current_season
         data = await self._request("standings", {
             "league": league_id,
             "season": season,

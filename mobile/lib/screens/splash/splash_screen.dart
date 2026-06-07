@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
+import '../../config/app_strings.dart';
 import '../../services/storage_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -90,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'AI-Powered Match Predictions',
+                      tr('splash.tagline'),
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: AppTheme.primary,
                           ),

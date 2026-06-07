@@ -31,38 +31,42 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("✅ Database initialized")
 
-    # Seed mock data if DB is empty
-    try:
-        from app.seed_mock_data import seed_mock_data
-        await seed_mock_data()
-    except Exception as e:
-        logger.warning(f"⚠️ Mock data seeding skipped: {e}")
-
     # Connect to Redis (falls back to in-memory)
     await cache.connect(settings.redis_url)
 
-    # Start scheduler for automated tasks (only if API keys are set)
-    if settings.api_football_key != "YOUR_API_FOOTBALL_KEY_HERE":
+    if settings.has_api_key:
+        # ── LIVE mode: a real API key is configured ──────────────────────
+        logger.info("🟢 LIVE mode — using the real API-Football feed")
         try:
             from apscheduler.schedulers.asyncio import AsyncIOScheduler
             from app.services.scheduler import daily_sync, update_live_matches
 
             scheduler = AsyncIOScheduler()
             scheduler.add_job(daily_sync, "cron", hour=6, minute=0)
-            scheduler.add_job(update_live_matches, "interval", minutes=5)
+            scheduler.add_job(
+                update_live_matches, "interval", minutes=settings.live_update_minutes
+            )
             scheduler.start()
-            logger.info("⏰ Scheduler started (daily sync + 5-min live update)")
+            logger.info(
+                f"⏰ Scheduler started (daily sync + {settings.live_update_minutes}-min live update)"
+            )
         except Exception as e:
             logger.warning(f"⚠️ Scheduler not started: {e}")
 
-        # Run initial sync
+        # Run an initial sync so today's real matches are available immediately
         try:
             from app.services.scheduler import daily_sync
             await daily_sync()
-        except Exception:
-            logger.warning("⚠️ Initial sync skipped (API key may not be set)")
+        except Exception as e:
+            logger.warning(f"⚠️ Initial sync failed: {e}")
     else:
-        logger.info("📦 Running in mock/demo mode (no API keys configured)")
+        # ── DEMO mode: no key → seed sample matches so the app is browsable ─
+        logger.info("📦 DEMO mode (no API key) — serving clearly-labelled sample data")
+        try:
+            from app.seed_mock_data import seed_mock_data
+            await seed_mock_data()
+        except Exception as e:
+            logger.warning(f"⚠️ Mock data seeding skipped: {e}")
 
     yield
 

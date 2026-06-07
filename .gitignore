@@ -39,3 +39,6 @@ backend/app.db
 *.swp
 *.swo
 .DS_Store
+
+# Local test database
+backend/test_run.db

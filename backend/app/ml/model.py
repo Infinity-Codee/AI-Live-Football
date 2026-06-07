@@ -145,14 +145,56 @@ def _heuristic_predict(features: dict) -> dict:
     }
 
 
+def _model_predict(features: dict) -> dict | None:
+    """
+    Run the trained model if it is enabled and loads successfully.
+    Returns a normalized {home,draw,away} dict, or None to fall back to the
+    heuristic (model disabled, failed to load, or produced an invalid result).
+    """
+    if not _model_loaded:
+        _load_model()
+    if not _model_loaded or _model is None:
+        return None
+
+    try:
+        vector = np.array([[float(features.get(name, 0)) for name in FEATURE_NAMES]])
+        proba = _model.predict_proba(vector)[0]
+        if len(proba) != 3 or not np.all(np.isfinite(proba)):
+            return None
+        # NOTE: class order [home, draw, away] must be verified against the
+        # model's training labels before trusting these outputs.
+        h, d, a = float(proba[0]), float(proba[1]), float(proba[2])
+        total = h + d + a
+        if total <= 0:
+            return None
+        return {
+            "home_win_prob": round(h / total, 4),
+            "draw_prob": round(d / total, 4),
+            "away_win_prob": round(a / total, 4),
+        }
+    except Exception as e:
+        logger.warning(f"⚠️ ML model inference failed, using heuristic: {e}")
+        return None
+
+
 def predict(features: dict) -> dict:
     """
     Main prediction function.
     Input: dict with the 9 feature keys.
     Output: {home_win_prob, draw_prob, away_win_prob}
+
+    Uses the tuned odds+stats heuristic by default. The shipped .pkl is only
+    consulted when settings.use_ml_model is True (off by default, because its
+    class-order mapping still needs verification — it gave wrong results on
+    clear wins). When the model is enabled but unavailable, the heuristic is
+    used as a safe fallback, so the model is never silently bypassed.
     """
-    # Bypass the .pkl files entirely as they are outputting 99% logic errors
-    # for clear win matches. Use the highly tuned heuristic algorithm.
+    from app.config import settings
+
+    if settings.use_ml_model:
+        ml_result = _model_predict(features)
+        if ml_result is not None:
+            return ml_result
     return _heuristic_predict(features)
 
 
@@ -160,13 +202,17 @@ def build_features(match_data: dict) -> dict:
     """
     Build the 9-feature dict from match data.
     Convenience function for use in routes.
+
+    Odds are coalesced with `or` (not dict-get defaults) so that a stored 0.0
+    (the DB default when odds are unknown) maps to a neutral prior instead of
+    poisoning the implied-probability step with a false home bias.
     """
     return {
         "current_minute": match_data.get("elapsed", 0),
         "tournament_type": match_data.get("tournament_type", 0),
-        "odd_h": match_data.get("odd_home", 2.5),
-        "odd_d": match_data.get("odd_draw", 3.2),
-        "odd_a": match_data.get("odd_away", 3.0),
+        "odd_h": match_data.get("odd_home") or 2.5,
+        "odd_d": match_data.get("odd_draw") or 3.2,
+        "odd_a": match_data.get("odd_away") or 3.0,
         "goal_diff": match_data.get("score_home", 0) - match_data.get("score_away", 0),
         "shot_diff": match_data.get("shots_home", 0) - match_data.get("shots_away", 0),
         "corner_diff": match_data.get("corners_home", 0) - match_data.get("corners_away", 0),

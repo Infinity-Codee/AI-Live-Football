@@ -2,8 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../config/constants.dart';
+import '../../config/app_strings.dart';
 import '../../services/api_service.dart';
 
 class StandingsScreen extends StatefulWidget {
@@ -18,6 +20,7 @@ class _StandingsScreenState extends State<StandingsScreen> {
   int _selectedLeagueId = 39; // Premier League default
   List<Map<String, dynamic>> _standings = [];
   bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
@@ -26,18 +29,25 @@ class _StandingsScreenState extends State<StandingsScreen> {
   }
 
   Future<void> _fetchStandings() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final data = await _api.getStandings(_selectedLeagueId);
       setState(() {
         _standings = List<Map<String, dynamic>>.from(data['standings'] ?? []);
       });
-    } catch (_) {}
+    } catch (_) {
+      // Sentinel flag only — the UI renders the localized tr('standings.error').
+      setState(() => _error = 'error');
+    }
     setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LocaleController>(); // rebuild on language switch
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
@@ -49,12 +59,21 @@ class _StandingsScreenState extends State<StandingsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Row(
                   children: [
-                    const SizedBox(width: 48),
-                    const Expanded(
+                    SizedBox(
+                      width: 48,
+                      child: Navigator.canPop(context)
+                          ? IconButton(
+                              icon: const Icon(Icons.arrow_back,
+                                  color: AppTheme.white),
+                              onPressed: () => Navigator.pop(context),
+                            )
+                          : null,
+                    ),
+                    Expanded(
                       child: Text(
-                        'Standings',
+                        tr('standings.title'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppTheme.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -71,18 +90,42 @@ class _StandingsScreenState extends State<StandingsScreen> {
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-                    : _standings.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No standings available',
-                              style: TextStyle(color: AppTheme.grey),
-                            ),
-                          )
-                        : _buildTable(),
+                    : _error != null
+                        ? _buildError()
+                        : _standings.isEmpty
+                            ? Center(
+                                child: Text(
+                                  tr('standings.empty'),
+                                  style: const TextStyle(color: AppTheme.grey),
+                                ),
+                              )
+                            : _buildTable(),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off, size: 56, color: AppTheme.grey),
+          const SizedBox(height: 12),
+          Text(
+            tr('standings.error'),
+            style: const TextStyle(color: AppTheme.grey, fontSize: 16),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _fetchStandings,
+            icon: const Icon(Icons.refresh),
+            label: Text(tr('home.retry')),
+          ),
+        ],
       ),
     );
   }
@@ -159,15 +202,15 @@ class _StandingsScreenState extends State<StandingsScreen> {
         color: AppTheme.bgSurface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          SizedBox(width: 28, child: Text('#', style: TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
-          Expanded(child: Text('Team', style: TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
-          SizedBox(width: 32, child: Text('P', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
-          SizedBox(width: 32, child: Text('W', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
-          SizedBox(width: 32, child: Text('D', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
-          SizedBox(width: 32, child: Text('L', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
-          SizedBox(width: 36, child: Text('Pts', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.gold, fontSize: 12, fontWeight: FontWeight.w600))),
+          const SizedBox(width: 28, child: Text('#', style: TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
+          Expanded(child: Text(tr('standings.colTeam'), style: const TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
+          SizedBox(width: 32, child: Text(tr('standings.colP'), textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
+          SizedBox(width: 32, child: Text(tr('standings.colW'), textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
+          SizedBox(width: 32, child: Text(tr('standings.colD'), textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
+          SizedBox(width: 32, child: Text(tr('standings.colL'), textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.grey, fontSize: 12, fontWeight: FontWeight.w600))),
+          SizedBox(width: 36, child: Text(tr('standings.colPts'), textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.gold, fontSize: 12, fontWeight: FontWeight.w600))),
         ],
       ),
     );

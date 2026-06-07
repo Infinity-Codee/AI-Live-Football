@@ -10,10 +10,12 @@ class MatchesProvider extends ChangeNotifier {
   List<LeagueGroup> _leagues = [];
   bool _isLoading = false;
   String? _error;
+  bool _demo = false;
 
   List<LeagueGroup> get leagues => _leagues;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get demo => _demo;
 
   int get totalMatches =>
       _leagues.fold(0, (sum, l) => sum + l.matches.length);
@@ -30,6 +32,7 @@ class MatchesProvider extends ChangeNotifier {
       final data = await _api.getTodayMatches();
       final matchesList = data['matches'] as List? ?? [];
       _leagues = matchesList.map((m) => LeagueGroup.fromJson(m)).toList();
+      _demo = data['demo'] == true;
     } catch (e) {
       _error = e.toString();
     }

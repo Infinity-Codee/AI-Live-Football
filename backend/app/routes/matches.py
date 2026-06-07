@@ -22,7 +22,7 @@ async def get_today_matches(db: AsyncSession = Depends(get_db)):
     # Check cache first
     cached = await cache.get("matches:today")
     if cached:
-        return {"matches": cached}
+        return {"matches": cached, "demo": not settings.has_api_key}
 
     # Query DB
     today_start = datetime.datetime.utcnow().replace(
@@ -95,7 +95,7 @@ async def get_today_matches(db: AsyncSession = Depends(get_db)):
 
     data = list(leagues.values())
     await cache.set("matches:today", data, settings.matches_cache_ttl)
-    return {"matches": data}
+    return {"matches": data, "demo": not settings.has_api_key}
 
 
 @router.get("/{match_id}")

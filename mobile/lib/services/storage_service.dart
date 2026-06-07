@@ -28,34 +28,7 @@ class StorageService {
   bool get hasSeenOnboarding => _prefs.getBool('onboarding_seen') ?? false;
   set hasSeenOnboarding(bool value) => _prefs.setBool('onboarding_seen', value);
 
-  // ─── Subscription ──────────────────────────────────
-  bool get isProUser => _prefs.getBool('is_pro_user') ?? false;
-  set isProUser(bool value) => _prefs.setBool('is_pro_user', value);
-
-  int get dailyFreeUnlocksUsed => _prefs.getInt('daily_free_unlocks_used') ?? 0;
-  set dailyFreeUnlocksUsed(int value) =>
-      _prefs.setInt('daily_free_unlocks_used', value);
-
-  String? get dailyFreeUnlockDate => _prefs.getString('daily_free_unlock_date');
-  set dailyFreeUnlockDate(String? value) {
-    if (value == null) {
-      _prefs.remove('daily_free_unlock_date');
-      return;
-    }
-    _prefs.setString('daily_free_unlock_date', value);
-  }
-
-  // ─── Unlocked matches (local quick check) ──────────
-  Set<int> get unlockedMatches {
-    final list = _prefs.getStringList('unlocked_matches') ?? [];
-    return list.map((e) => int.parse(e)).toSet();
-  }
-
-  void unlockMatch(int matchId) {
-    final set = unlockedMatches;
-    set.add(matchId);
-    _prefs.setStringList('unlocked_matches', set.map((e) => e.toString()).toList());
-  }
-
-  bool isMatchUnlocked(int matchId) => unlockedMatches.contains(matchId);
+  // ─── Language ('en' | 'tr') ────────────────────────
+  String get language => _prefs.getString('app_language') ?? 'en';
+  set language(String value) => _prefs.setString('app_language', value);
 }

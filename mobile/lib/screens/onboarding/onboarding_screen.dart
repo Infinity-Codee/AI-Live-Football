@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../config/theme.dart';
+import '../../config/app_strings.dart';
 import '../../services/storage_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -16,23 +17,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _controller = PageController();
   int _currentPage = 0;
 
-  final _pages = const [
+  List<_OnboardingPage> get _pages => [
     _OnboardingPage(
       icon: Icons.psychology,
-      title: 'AI-Powered Predictions',
-      subtitle: 'Our XGBoost AI analyzes match momentum\nto predict outcomes with 81.2% accuracy',
+      title: tr('onboarding.title1'),
+      subtitle: tr('onboarding.sub1'),
       color: AppTheme.primary,
     ),
     _OnboardingPage(
       icon: Icons.timeline,
-      title: 'Real-Time Momentum',
-      subtitle: 'Watch win probabilities change every\n5 minutes as the match unfolds',
+      title: tr('onboarding.title2'),
+      subtitle: tr('onboarding.sub2'),
       color: AppTheme.accent,
     ),
     _OnboardingPage(
-      icon: Icons.play_circle_outline,
-      title: 'Watch & Earn Credits',
-      subtitle: 'Watch a short video to earn credits.\nUse credits to unlock live AI predictions!',
+      icon: Icons.celebration,
+      title: tr('onboarding.title3'),
+      subtitle: tr('onboarding.sub3'),
       color: AppTheme.gold,
     ),
   ];
@@ -56,8 +57,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: TextButton(
                   onPressed: _finish,
                   child: Text(
-                    'Skip',
-                    style: TextStyle(color: AppTheme.grey, fontSize: 16),
+                    tr('onboarding.skip'),
+                    style: const TextStyle(color: AppTheme.grey, fontSize: 16),
                   ),
                 ),
               ),
@@ -108,9 +109,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                         child: Center(
                           child: _currentPage == _pages.length - 1
-                              ? const Text(
-                                  'Get Started',
-                                  style: TextStyle(
+                              ? Text(
+                                  tr('onboarding.getStarted'),
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 16,

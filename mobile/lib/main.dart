@@ -5,12 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'config/theme.dart';
+import 'config/app_strings.dart';
 import 'models/match.dart';
 import 'providers/matches_provider.dart';
 import 'providers/prediction_provider.dart';
-import 'providers/subscription_provider.dart';
-import 'providers/wallet_provider.dart';
-import 'services/ad_service.dart';
 import 'services/storage_service.dart';
 
 import 'screens/splash/splash_screen.dart';
@@ -18,8 +16,6 @@ import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/main/main_screen.dart';
 import 'screens/match_insights/match_insights_screen.dart';
-import 'screens/paywall/paywall_screen.dart';
-import 'screens/wallet/wallet_screen.dart';
 import 'screens/standings/standings_screen.dart';
 
 void main() async {
@@ -39,12 +35,8 @@ void main() async {
   // Initialize services
   await StorageService().init();
 
-  // Initialize AdMob early so rewarded inventory is ready when needed.
-  try {
-    await AdService().initialize();
-  } catch (_) {
-    // Keep app usable even if ads are temporarily unavailable.
-  }
+  // Load the saved UI language (English / Turkish)
+  LocaleController.instance.load();
 
   runApp(const FootAIApp());
 }
@@ -58,10 +50,13 @@ class FootAIApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => MatchesProvider()),
         ChangeNotifierProvider(create: (_) => PredictionProvider()),
-        ChangeNotifierProvider(create: (_) => SubscriptionProvider()),
-        ChangeNotifierProvider(create: (_) => WalletProvider()),
+        ChangeNotifierProvider<LocaleController>.value(
+          value: LocaleController.instance,
+        ),
       ],
-      child: MaterialApp(
+      child: ListenableBuilder(
+        listenable: LocaleController.instance,
+        builder: (context, _) => MaterialApp(
         title: 'FootAI Insight',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
@@ -79,16 +74,13 @@ class FootAIApp extends StatelessWidget {
             case '/match':
               final match = settings.arguments as MatchModel;
               return _slideRoute(MatchInsightsScreen(match: match));
-            case '/wallet':
-              return _slideRoute(const WalletScreen());
-            case '/paywall':
-              return _slideRoute(const PaywallScreen());
             case '/standings':
               return _slideRoute(const StandingsScreen());
             default:
               return _fadeRoute(const MainScreen());
           }
         },
+        ),
       ),
     );
   }

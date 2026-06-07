@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_gauges/gauges.dart';
 import '../../../config/theme.dart';
+import '../../../config/app_strings.dart';
 import '../../../models/prediction.dart';
 
 class ProbabilityGauge extends StatelessWidget {
@@ -30,17 +31,17 @@ class ProbabilityGauge extends StatelessWidget {
     Color leaderColor;
     double leaderValue;
     if (h >= d && h >= a) {
-      leader = prediction.homeTeam.isNotEmpty ? prediction.homeTeam : 'Home';
+      leader = prediction.homeTeam.isNotEmpty ? prediction.homeTeam : tr('gauge.home');
       leaderLogo = homeLogo;
       leaderColor = AppTheme.homeWin;
       leaderValue = h;
     } else if (a >= h && a >= d) {
-      leader = prediction.awayTeam.isNotEmpty ? prediction.awayTeam : 'Away';
+      leader = prediction.awayTeam.isNotEmpty ? prediction.awayTeam : tr('gauge.away');
       leaderLogo = awayLogo;
       leaderColor = AppTheme.awayWin;
       leaderValue = a;
     } else {
-      leader = 'Draw';
+      leader = tr('gauge.draw');
       leaderLogo = '';
       leaderColor = AppTheme.draw;
       leaderValue = d;
@@ -133,20 +134,20 @@ class ProbabilityGauge extends StatelessWidget {
           Row(
             children: [
               _buildProbLabel(
-                prediction.homeTeam.isNotEmpty ? prediction.homeTeam : 'Home',
+                prediction.homeTeam.isNotEmpty ? prediction.homeTeam : tr('gauge.home'),
                 prediction.homePercent,
                 AppTheme.homeWin,
                 logoUrl: homeLogo,
               ),
               const SizedBox(width: 8),
               _buildProbLabel(
-                'Draw',
+                tr('gauge.draw'),
                 prediction.drawPercent,
                 AppTheme.draw,
               ),
               const SizedBox(width: 8),
               _buildProbLabel(
-                prediction.awayTeam.isNotEmpty ? prediction.awayTeam : 'Away',
+                prediction.awayTeam.isNotEmpty ? prediction.awayTeam : tr('gauge.away'),
                 prediction.awayPercent,
                 AppTheme.awayWin,
                 logoUrl: awayLogo,

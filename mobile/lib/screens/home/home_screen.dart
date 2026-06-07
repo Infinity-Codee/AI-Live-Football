@@ -5,10 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../config/theme.dart';
+import '../../config/app_strings.dart';
 import '../../providers/matches_provider.dart';
-import '../../providers/subscription_provider.dart';
-import '../../providers/wallet_provider.dart';
-import 'widgets/match_card.dart';
 import 'widgets/league_section.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -26,8 +24,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MatchesProvider>().fetchTodayMatches();
-      context.read<WalletProvider>().registerAndFetch();
-      context.read<SubscriptionProvider>().load();
     });
 
     // Auto-refresh the dashboard every 5 minutes
@@ -46,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LocaleController>(); // rebuild on language switch
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
@@ -53,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             children: [
               _buildHeader(),
+              _buildDemoBanner(),
               Expanded(child: _buildBody()),
             ],
           ),
@@ -62,69 +60,103 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
-    return Consumer<WalletProvider>(
-      builder: (_, wallet, __) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-        child: Row(
-          children: [
-            // Logo
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-                borderRadius: AppTheme.radiusMd,
-              ),
-              child: const Icon(Icons.sports_soccer, color: Colors.white, size: 24),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+      child: Row(
+        children: [
+          // Logo
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+              borderRadius: AppTheme.radiusMd,
             ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'FootAI Insight',
-                  style: Theme.of(context).textTheme.titleLarge,
+            child: const Icon(Icons.sports_soccer, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'FootAI Insight',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              Consumer<MatchesProvider>(
+                builder: (_, mp, __) => Text(
+                  '${mp.totalMatches} ${tr('home.matchesToday')} • ${mp.liveMatches} ${tr('home.live')}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.primary,
+                      ),
                 ),
-                Consumer<MatchesProvider>(
-                  builder: (_, mp, __) => Text(
-                    '${mp.totalMatches} matches today • ${mp.liveMatches} live',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.primary,
-                        ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          // Language toggle (EN / TR)
+          GestureDetector(
+            onTap: () => LocaleController.instance.toggle(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.bgCard,
+                borderRadius: AppTheme.radiusXl,
+                border: Border.all(
+                  color: AppTheme.primary.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.language, color: AppTheme.primary, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    LocaleController.instance.isTurkish ? 'TR' : 'EN',
+                    style: const TextStyle(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDemoBanner() {
+    return Consumer<MatchesProvider>(
+      builder: (_, mp, __) {
+        if (!mp.demo) return const SizedBox.shrink();
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.gold.withValues(alpha: 0.15),
+            borderRadius: AppTheme.radiusSm,
+            border: Border.all(color: AppTheme.gold.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, color: AppTheme.gold, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  tr('home.demoBanner'),
+                  style: const TextStyle(
+                    color: AppTheme.gold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ],
-            ),
-            const Spacer(),
-            // Credits badge
-            GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/wallet'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  gradient: AppTheme.goldGradient,
-                  borderRadius: AppTheme.radiusXl,
-                  boxShadow: AppTheme.glowShadow(AppTheme.gold),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.toll, color: Colors.black87, size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${wallet.credits}',
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -187,19 +219,19 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(Icons.cloud_off, size: 64, color: AppTheme.grey),
           const SizedBox(height: 16),
           Text(
-            'Could not load matches',
-            style: TextStyle(color: AppTheme.grey, fontSize: 18),
+            tr('home.errorTitle'),
+            style: const TextStyle(color: AppTheme.grey, fontSize: 18),
           ),
           const SizedBox(height: 8),
           Text(
-            'Check your connection and try again',
+            tr('home.errorSub'),
             style: TextStyle(color: AppTheme.grey.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () => provider.fetchTodayMatches(),
             icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            label: Text(tr('home.retry')),
           ),
         ],
       ),
@@ -214,12 +246,12 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(Icons.sports_soccer, size: 64, color: AppTheme.grey),
           const SizedBox(height: 16),
           Text(
-            'No matches today',
-            style: TextStyle(color: AppTheme.grey, fontSize: 18),
+            tr('home.emptyTitle'),
+            style: const TextStyle(color: AppTheme.grey, fontSize: 18),
           ),
           const SizedBox(height: 8),
           Text(
-            'Check back later for upcoming matches',
+            tr('home.emptySub'),
             style: TextStyle(color: AppTheme.grey.withValues(alpha: 0.6)),
           ),
         ],

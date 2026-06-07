@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../../config/theme.dart';
+import '../../../config/app_strings.dart';
 
 class StatsComparison extends StatelessWidget {
   final Map<String, dynamic> stats;
@@ -20,27 +21,27 @@ class StatsComparison extends StatelessWidget {
       child: Column(
         children: [
           _buildStatRow(
-            'Shots',
+            tr('stats.shots'),
             stats['shots_home'] ?? 0,
             stats['shots_away'] ?? 0,
           ),
           const SizedBox(height: 16),
           _buildStatRow(
-            'Corners',
+            tr('stats.corners'),
             stats['corners_home'] ?? 0,
             stats['corners_away'] ?? 0,
           ),
           const SizedBox(height: 16),
-          _buildExtraRow('Ball Possession', 'possession', isPercent: true),
+          _buildExtraRow(tr('stats.possession'), 'possession', isPercent: true),
           const SizedBox(height: 16),
-          _buildExtraRow('Fouls', 'fouls'),
+          _buildExtraRow(tr('stats.fouls'), 'fouls'),
           const SizedBox(height: 16),
-          _buildExtraRow('Yellow Cards', 'yellow_cards', isYellowCard: true),
+          _buildExtraRow(tr('stats.yellowCards'), 'yellow_cards', isYellowCard: true),
           const SizedBox(height: 16),
-          _buildExtraRow('Offsides', 'offsides'),
+          _buildExtraRow(tr('stats.offsides'), 'offsides'),
           const SizedBox(height: 16),
           _buildStatRow(
-            'Red Cards',
+            tr('stats.redCards'),
             stats['red_cards_home'] ?? 0,
             stats['red_cards_away'] ?? 0,
             isRedCard: true,

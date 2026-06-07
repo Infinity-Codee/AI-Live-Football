@@ -1,9 +1,10 @@
 /// Main Screen — Holds the Bottom Navigation Bar
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../config/theme.dart';
+import '../../config/app_strings.dart';
 import '../home/home_screen.dart';
 import '../standings/standings_screen.dart';
-import '../wallet/wallet_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -18,12 +19,21 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const StandingsScreen(),
-    const WalletScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    context.watch<LocaleController>(); // rebuild nav labels on language switch
+    return PopScope(
+      // Allow the app to exit only from the Home tab; otherwise the system
+      // back gesture returns to Home instead of quitting the app.
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+        }
+      },
+      child: Scaffold(
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
@@ -50,25 +60,21 @@ class _MainScreenState extends State<MainScreen> {
             backgroundColor: AppTheme.bgSurface,
             indicatorColor: AppTheme.primary.withValues(alpha: 0.2),
             elevation: 0,
-            destinations: const [
+            destinations: [
               NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home, color: AppTheme.primary),
-                label: 'Home',
+                icon: const Icon(Icons.home_outlined),
+                selectedIcon: const Icon(Icons.home, color: AppTheme.primary),
+                label: tr('nav.home'),
               ),
               NavigationDestination(
-                icon: Icon(Icons.table_chart_outlined),
-                selectedIcon: Icon(Icons.table_chart, color: AppTheme.primary),
-                label: 'Standings',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.account_balance_wallet_outlined),
-                selectedIcon: Icon(Icons.account_balance_wallet, color: AppTheme.primary),
-                label: 'Wallet',
+                icon: const Icon(Icons.table_chart_outlined),
+                selectedIcon: const Icon(Icons.table_chart, color: AppTheme.primary),
+                label: tr('nav.standings'),
               ),
             ],
           ),
         ),
+      ),
       ),
     );
   }

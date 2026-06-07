@@ -6,11 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/theme.dart';
+import '../../config/app_strings.dart';
 import '../../models/match.dart';
 import '../../providers/prediction_provider.dart';
-import '../../providers/subscription_provider.dart';
-import '../../providers/wallet_provider.dart';
-import '../../services/analytics_service.dart';
 import 'widgets/momentum_chart.dart';
 import 'widgets/probability_gauge.dart';
 import 'widgets/stats_comparison.dart';
@@ -25,42 +23,31 @@ class MatchInsightsScreen extends StatefulWidget {
 }
 
 class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
-  bool _unlocked = false;
   Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _checkAccess();
+    // Defer until after the first frame so provider notifyListeners() calls
+    // don't fire during build (avoids "setState() called during build").
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checkAccess();
+    });
   }
 
   void _checkAccess() {
-    final wallet = context.read<WalletProvider>();
-    final sub = context.read<SubscriptionProvider>();
-
-    _unlocked = sub.isPro ||
-        wallet.isMatchUnlocked(widget.match.id) ||
-        widget.match.isFinished;
-
-    if (_unlocked) {
-      if (sub.isPro) {
-        AnalyticsService().track(
-          'pro_feature_used',
-          properties: {'match_id': widget.match.id},
-        );
-      }
-      if (widget.match.isNotStarted) {
-        context.read<PredictionProvider>().fetchPreMatch(widget.match.id);
-      } else {
-        context.read<PredictionProvider>().fetchLivePrediction(widget.match.id);
-      }
-      _startRefreshTimer();
+    // All predictions are free — load immediately, no unlock required.
+    if (widget.match.isNotStarted) {
+      context.read<PredictionProvider>().fetchPreMatch(widget.match.id);
+    } else {
+      context.read<PredictionProvider>().fetchLivePrediction(widget.match.id);
     }
+    _startRefreshTimer();
   }
 
   void _startRefreshTimer() {
     _refreshTimer?.cancel();
-    if (widget.match.isLive && _unlocked) {
+    if (widget.match.isLive) {
       _refreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
         if (mounted) {
           context.read<PredictionProvider>().fetchLivePrediction(widget.match.id);
@@ -73,65 +60,6 @@ class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
   void dispose() {
     _refreshTimer?.cancel();
     super.dispose();
-  }
-
-  Future<void> _unlock() async {
-    final wallet = context.read<WalletProvider>();
-    final sub = context.read<SubscriptionProvider>();
-    final analytics = AnalyticsService();
-
-    // Pro users always have full access.
-    if (sub.isPro) {
-      wallet.unlockMatchLocally(widget.match.id);
-      setState(() => _unlocked = true);
-      if (widget.match.isNotStarted) {
-        context.read<PredictionProvider>().fetchPreMatch(widget.match.id);
-      } else {
-        context.read<PredictionProvider>().fetchLivePrediction(widget.match.id);
-      }
-      _startRefreshTimer();
-      await analytics.track(
-        'pro_feature_used',
-        properties: {'match_id': widget.match.id},
-      );
-      return;
-    }
-
-    // Free users must watch a rewarded video to unlock analysis.
-    final earned = await wallet.watchAdForCredit();
-    if (!earned) {
-      _showSnackbar('Watch a video ad to unlock analysis, or upgrade to Pro.');
-      return;
-    }
-
-    final success = await wallet.unlockMatch(widget.match.id);
-    if (success) {
-      setState(() => _unlocked = true);
-      if (widget.match.isNotStarted) {
-        context.read<PredictionProvider>().fetchPreMatch(widget.match.id);
-      } else {
-        context.read<PredictionProvider>().fetchLivePrediction(widget.match.id);
-      }
-      _startRefreshTimer();
-      await analytics.track(
-        'match_unlock_success',
-        properties: {'match_id': widget.match.id, 'source': 'rewarded_video'},
-      );
-      return;
-    }
-
-    _showSnackbar('Could not unlock match right now.');
-  }
-
-  void _showSnackbar(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: AppTheme.primary,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
@@ -150,10 +78,7 @@ class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
                     children: [
                       _buildMatchHeader(),
                       const SizedBox(height: 20),
-                      if (_unlocked)
-                        _buildPredictionContent()
-                      else
-                        _buildLockedContent(),
+                      _buildPredictionContent(),
                     ],
                   ),
                 ),
@@ -174,18 +99,18 @@ class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
             icon: const Icon(Icons.arrow_back_ios, color: AppTheme.white),
             onPressed: () => Navigator.pop(context),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Match Insights',
+              tr('insights.title'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppTheme.white,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          if (_unlocked && widget.match.isLive)
+          if (widget.match.isLive)
             IconButton(
               icon: const Icon(Icons.refresh, color: AppTheme.primary),
               onPressed: () => context
@@ -238,7 +163,7 @@ class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'LIVE  $elapsed\'',
+                        '${tr('match.live')}  $elapsed\'',
                         style: const TextStyle(
                           color: AppTheme.live,
                           fontWeight: FontWeight.w700,
@@ -265,7 +190,7 @@ class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
                       borderRadius: AppTheme.radiusMd,
                     ),
                     child: Text(
-                      widget.match.isNotStarted ? 'VS' : score,
+                      widget.match.isNotStarted ? tr('match.vs') : score,
                       style: const TextStyle(
                         color: AppTheme.white,
                         fontSize: 28,
@@ -299,11 +224,11 @@ class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
         }
 
         if (provider.current == null) {
-          return const Padding(
-            padding: EdgeInsets.all(40),
+          return Padding(
+            padding: const EdgeInsets.all(40),
             child: Text(
-              'No prediction available',
-              style: TextStyle(color: AppTheme.grey),
+              tr('insights.noPrediction'),
+              style: const TextStyle(color: AppTheme.grey),
             ),
           );
         }
@@ -324,8 +249,8 @@ class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
                   const SizedBox(width: 6),
                   Text(
                     pred.type == 'pre_match'
-                        ? 'Pre-Match Analysis'
-                        : 'Live AI Prediction',
+                        ? tr('insights.preMatch')
+                        : tr('insights.liveAi'),
                     style: const TextStyle(
                       color: AppTheme.primary,
                       fontSize: 13,
@@ -343,94 +268,17 @@ class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
             ),
             const SizedBox(height: 24),
             if (provider.history.isNotEmpty) ...[
-              _buildSectionTitle('Momentum Timeline'),
+              _buildSectionTitle(tr('insights.momentum')),
               const SizedBox(height: 12),
               MomentumChart(history: provider.history),
               const SizedBox(height: 24),
             ],
             if (pred.stats != null) ...[
-              _buildSectionTitle('Match Statistics'),
+              _buildSectionTitle(tr('insights.statistics')),
               const SizedBox(height: 12),
               StatsComparison(stats: pred.stats!),
             ],
           ],
-        );
-      },
-    );
-  }
-
-  Widget _buildLockedContent() {
-    return Consumer2<WalletProvider, SubscriptionProvider>(
-      builder: (_, wallet, sub, __) {
-        const buttonLabel = 'Watch Video to Unlock Analysis';
-
-        return Container(
-          margin: const EdgeInsets.only(top: 20),
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: AppTheme.bgCard,
-            borderRadius: AppTheme.radiusLg,
-            border: Border.all(color: AppTheme.gold.withValues(alpha: 0.3)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  gradient: AppTheme.goldGradient,
-                  shape: BoxShape.circle,
-                  boxShadow: AppTheme.glowShadow(AppTheme.gold),
-                ),
-                child: const Icon(Icons.lock, size: 36, color: Colors.black87),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Unlock AI Predictions',
-                style: TextStyle(
-                  color: AppTheme.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                sub.isPro
-                    ? 'Pro users can view all analyses without ads.'
-                    : 'Watch a rewarded video ad to view this analysis.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppTheme.grey, height: 1.4),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.toll, color: AppTheme.gold, size: 18),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${wallet.credits} credits',
-                    style: const TextStyle(color: AppTheme.greyLight),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _unlock,
-                  icon: const Icon(Icons.lock_open),
-                  label: Text(buttonLabel),
-                ),
-              ),
-              if (!sub.isPro) ...[
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: () => Navigator.pushNamed(context, '/paywall'),
-                  child: const Text('Go Pro: unlimited unlocks, no ads'),
-                ),
-              ],
-            ],
-          ),
         );
       },
     );

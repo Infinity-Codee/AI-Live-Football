@@ -1,29 +1,21 @@
 /// App-wide constants
 
+import 'package:flutter/foundation.dart';
+
 class AppConstants {
-  // Change this to your actual backend URL
-  // Use 10.0.2.2 for Android Emulator:
-  // static const String baseUrl = 'http://10.0.2.2:8000/api';
-  
-  // Use localhost for iOS Simulator or macOS app:
-  static const String baseUrl = 'http://localhost:8000/api';
-
-  // RevenueCat (set your public SDK keys)
-  static const String revenueCatAppleApiKey = '';
-  static const String revenueCatGoogleApiKey = '';
-  static const String proEntitlementId = 'pro';
-  static const String proMonthlyProductId = 'pro_monthly';
-  static const String proYearlyProductId = 'pro_yearly';
-
-  // AdMob IDs (replace with your real IDs)
-  static const String admobAppId = 'ca-app-pub-3940256099942544~3347511713'; // test
-  static const String admobIosAppId = 'ca-app-pub-3940256099942544~1458002511'; // test
-  static const String rewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917'; // test
-  static const String bannerAdUnitId = 'ca-app-pub-3940256099942544/6300978111'; // test
-
-  // Credit system
-  static const int creditsPerAd = 1;
-  static const int creditsPerMatch = 1;
+  /// Backend base URL, resolved per platform so it works out of the box:
+  ///   • Android emulator → 10.0.2.2 (the host machine, not the emulator)
+  ///   • iOS simulator / macOS / web / desktop → localhost
+  ///   • Physical device / deployed server → pass it at build time:
+  ///       flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api
+  static String get baseUrl {
+    const override = String.fromEnvironment('API_BASE_URL');
+    if (override.isNotEmpty) return override;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000/api';
+    }
+    return 'http://localhost:8000/api';
+  }
 
   // Cache/refresh intervals
   static const int refreshIntervalSeconds = 300; // 5 minutes

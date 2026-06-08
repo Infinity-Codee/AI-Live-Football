@@ -66,9 +66,22 @@ class Settings(BaseSettings):
         env_file = ".env"
 
     @property
+    def api_football_keys(self) -> list[str]:
+        """
+        All configured API-Football keys. API_FOOTBALL_KEY may hold several keys
+        separated by commas (one per free account); the client drains them in
+        order, so 3 keys ≈ 300 requests/day.
+        """
+        return [
+            k.strip()
+            for k in self.api_football_key.split(",")
+            if k.strip() and k.strip() not in _PLACEHOLDER_KEYS
+        ]
+
+    @property
     def has_api_key(self) -> bool:
-        """True when a real API-Football key has been configured."""
-        return self.api_football_key not in _PLACEHOLDER_KEYS
+        """True when at least one real API-Football key is configured."""
+        return len(self.api_football_keys) > 0
 
     @property
     def has_odds_key(self) -> bool:

@@ -19,21 +19,40 @@ class FootballApiService:
 
     def __init__(self):
         self.base_url = settings.api_football_base_url
-        self.headers = {
-            "x-apisports-key": settings.api_football_key,
-        }
 
     async def _request(self, endpoint: str, params: dict = None) -> dict:
-        """Make a GET request to API-Football."""
+        """
+        GET with multi-account quota rotation. API-Football signals the daily
+        limit with a 200 response whose `errors.requests` is set (or HTTP 429),
+        so we transparently retry with the next configured key — giving roughly
+        N*100 requests/day across N free accounts.
+        """
+        keys = settings.api_football_keys or [settings.api_football_key]
+        last = {"response": []}
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(
-                f"{self.base_url}/{endpoint}",
-                headers=self.headers,
-                params=params or {},
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data
+            for idx, key in enumerate(keys):
+                resp = await client.get(
+                    f"{self.base_url}/{endpoint}",
+                    headers={"x-apisports-key": key},
+                    params=params or {},
+                )
+                if resp.status_code == 429:
+                    logger.warning(f"⚠️ API-Football key #{idx + 1} rate-limited (429), trying next")
+                    last = {"response": []}
+                    continue
+                resp.raise_for_status()
+                data = resp.json()
+                errors = data.get("errors")
+                # Skip any key that reports an error (daily quota, suspended
+                # account, invalid token...) and fall through to the next one.
+                if errors and isinstance(errors, dict):
+                    reason = ", ".join(errors.keys())
+                    logger.warning(f"⚠️ API-Football key #{idx + 1} unavailable ({reason}), trying next")
+                    last = data
+                    continue
+                return data
+        logger.error("❌ All API-Football keys exhausted for today")
+        return last
 
     async def fetch_today_matches(self, target_date: str = None) -> list[dict]:
         """

@@ -5,7 +5,7 @@ for testing the ML model and mobile app display.
 
 import datetime
 import logging
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from app.models.database import async_session
 from app.models.match import Match
 
@@ -334,15 +334,27 @@ MOCK_MATCHES = [
 ]
 
 
-async def seed_mock_data():
-    """Insert mock matches into the database if empty."""
+async def seed_mock_data(force: bool = False):
+    """Insert mock matches into the database.
+
+    Default: a no-op when the DB already has matches. With ``force=True`` it first
+    removes any existing sample fixtures (ids 100001-100012) and re-inserts them
+    fresh — used to heal demo data an earlier code version may have degraded (e.g.
+    stats zeroed) without touching real matches.
+    """
     try:
         async with async_session() as db:
-            # Check if we already have matches
-            result = await db.execute(select(Match).limit(1))
-            if result.scalars().first():
-                logger.info("📦 Database already has matches, skipping seed")
-                return False
+            mock_ids = [m["fixture_id"] for m in MOCK_MATCHES]
+            if force:
+                # Drop only the sample rows, then re-seed them clean.
+                await db.execute(delete(Match).where(Match.fixture_id.in_(mock_ids)))
+                await db.commit()
+            else:
+                # Check if we already have matches
+                result = await db.execute(select(Match).limit(1))
+                if result.scalars().first():
+                    logger.info("📦 Database already has matches, skipping seed")
+                    return False
 
             now = datetime.datetime.utcnow()
 

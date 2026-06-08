@@ -67,12 +67,19 @@ async def lifespan(app: FastAPI):
             from sqlalchemy import select, func
             from app.models.match import Match
             from app.models.database import async_session
+            from app.seed_mock_data import seed_mock_data, MOCK_MATCHES
+            mock_ids = [m["fixture_id"] for m in MOCK_MATCHES]
             async with async_session() as db:
-                count = (await db.execute(select(func.count(Match.id)))).scalar() or 0
-            if count == 0:
-                from app.seed_mock_data import seed_mock_data
-                await seed_mock_data()
-                logger.info("📦 No live matches available — seeded sample data as a fallback")
+                real_count = (await db.execute(
+                    select(func.count(Match.id)).where(Match.fixture_id.notin_(mock_ids))
+                )).scalar() or 0
+            if real_count == 0:
+                # No real fixtures (off-season / quota exhausted). Seed FRESH
+                # sample data — force=True replaces any stale/degraded mock rows
+                # so the app always shows a clean, populated demo set. Real
+                # matches replace these on the next successful sync.
+                await seed_mock_data(force=True)
+                logger.info("📦 No real matches available — refreshed clean sample data as a fallback")
         except Exception as e:
             logger.warning(f"⚠️ Fallback seed failed: {e}")
     else:

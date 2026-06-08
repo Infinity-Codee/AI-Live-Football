@@ -7,7 +7,7 @@ Scheduler — automated tasks for data sync.
 
 import logging
 import datetime
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from app.models.database import async_session
 from app.models.match import Match
 from app.services.football_api import football_api, LIVE_STATUSES
@@ -85,6 +85,19 @@ async def daily_sync():
                         odd_away=matched_odds["odd_away"] if matched_odds else 0,
                     )
                     db.add(match)
+
+            # Once real fixtures are available, drop the sample/fallback rows so
+            # real and demo matches never appear together in the app.
+            if matches:
+                from app.seed_mock_data import MOCK_MATCHES
+                mock_ids = [mm["fixture_id"] for mm in MOCK_MATCHES]
+                real_ids = {m["fixture_id"] for m in matches}
+                stale_mock_ids = [mid for mid in mock_ids if mid not in real_ids]
+                if stale_mock_ids:
+                    await db.execute(
+                        delete(Match).where(Match.fixture_id.in_(stale_mock_ids))
+                    )
+                    logger.info(f"🧹 Removed {len(stale_mock_ids)} sample rows (real fixtures available)")
 
             await db.commit()
 

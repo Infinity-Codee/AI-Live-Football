@@ -42,3 +42,4 @@ backend/app.db
 
 # Local test database
 backend/test_run.db
+backend/live.db

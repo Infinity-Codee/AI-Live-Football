@@ -145,11 +145,25 @@ def _heuristic_predict(features: dict) -> dict:
     }
 
 
+# The model was trained on a DataFrame whose column names/order differ from our
+# internal feature keys; this maps each model feature to our key.
+_MODEL_FEATURE_MAP = {
+    "Current_Minute": "current_minute",
+    "Tournament_Type": "tournament_type",
+    "odd_h": "odd_h", "odd_d": "odd_d", "odd_a": "odd_a",
+    "Goal_Diff": "goal_diff",
+    "Red_Card_Diff": "red_card_diff",
+    "Shot_Diff": "shot_diff",
+    "Corner_Diff": "corner_diff",
+}
+
+
 def _model_predict(features: dict) -> dict | None:
     """
-    Run the trained model if it is enabled and loads successfully.
-    Returns a normalized {home,draw,away} dict, or None to fall back to the
-    heuristic (model disabled, failed to load, or produced an invalid result).
+    Run the trained XGBoost model. Builds the input in the model's EXACT training
+    feature order and maps its output columns correctly:
+    class 0 = draw, class 1 = home win, class 2 = away win (verified empirically).
+    Returns normalized probabilities, or None to fall back to the heuristic.
     """
     if not _model_loaded:
         _load_model()
@@ -157,20 +171,25 @@ def _model_predict(features: dict) -> dict | None:
         return None
 
     try:
-        vector = np.array([[float(features.get(name, 0)) for name in FEATURE_NAMES]])
-        proba = _model.predict_proba(vector)[0]
+        order = list(getattr(_model, "feature_names_in_", []))
+        if order:
+            import pandas as pd
+            row = {n: float(features.get(_MODEL_FEATURE_MAP.get(n, n), 0)) for n in order}
+            X = pd.DataFrame([row], columns=order)
+        else:
+            X = np.array([[float(features.get(n, 0)) for n in FEATURE_NAMES]])
+        proba = _model.predict_proba(X)[0]
         if len(proba) != 3 or not np.all(np.isfinite(proba)):
             return None
-        # NOTE: class order [home, draw, away] must be verified against the
-        # model's training labels before trusting these outputs.
-        h, d, a = float(proba[0]), float(proba[1]), float(proba[2])
-        total = h + d + a
+        # Model class columns: 0 = draw, 1 = home win, 2 = away win
+        draw, home, away = float(proba[0]), float(proba[1]), float(proba[2])
+        total = home + draw + away
         if total <= 0:
             return None
         return {
-            "home_win_prob": round(h / total, 4),
-            "draw_prob": round(d / total, 4),
-            "away_win_prob": round(a / total, 4),
+            "home_win_prob": round(home / total, 4),
+            "draw_prob": round(draw / total, 4),
+            "away_win_prob": round(away / total, 4),
         }
     except Exception as e:
         logger.warning(f"⚠️ ML model inference failed, using heuristic: {e}")
@@ -179,19 +198,15 @@ def _model_predict(features: dict) -> dict | None:
 
 def predict(features: dict) -> dict:
     """
-    Main prediction function.
-    Input: dict with the 9 feature keys.
-    Output: {home_win_prob, draw_prob, away_win_prob}
-
-    Uses the tuned odds+stats heuristic by default. The shipped .pkl is only
-    consulted when settings.use_ml_model is True (off by default, because its
-    class-order mapping still needs verification — it gave wrong results on
-    clear wins). When the model is enabled but unavailable, the heuristic is
-    used as a safe fallback, so the model is never silently bypassed.
+    Main prediction function (hybrid):
+      • In-play (match started, minute > 0): the trained XGBoost model analyzes
+        the live data (goal/shot/corner/card differentials, time, odds).
+      • Pre-match (minute 0) or if the model is unavailable: the odds-based
+        statistical engine, which is more reliable before kick-off.
     """
     from app.config import settings
 
-    if settings.use_ml_model:
+    if settings.use_ml_model and features.get("current_minute", 0) > 0:
         ml_result = _model_predict(features)
         if ml_result is not None:
             return ml_result

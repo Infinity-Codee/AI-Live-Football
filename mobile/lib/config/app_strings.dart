@@ -120,6 +120,11 @@ class AppStrings {
       'tr': 'Momentum maç ilerledikçe oluşur',
     },
     'insights.statistics': {'en': 'Match Statistics', 'tr': 'Maç İstatistikleri'},
+    'insights.aiAnalysis': {'en': 'AI Analysis', 'tr': 'Yapay Zeka Analizi'},
+    'insights.aiLoading': {
+      'en': 'Generating AI analysis...',
+      'tr': 'Yapay zeka analizi oluşturuluyor...',
+    },
 
     // ── Probability gauge ───────────────────────────────
     'gauge.home': {'en': 'HOME', 'tr': 'EV'},

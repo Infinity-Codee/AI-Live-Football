@@ -34,6 +34,8 @@ class ApiService {
       _get('/predictions/$matchId');
   Future<Map<String, dynamic>> getPredictionHistory(int matchId) =>
       _get('/predictions/$matchId/history');
+  Future<Map<String, dynamic>> getMatchAnalysis(int matchId) =>
+      _get('/predictions/$matchId/analysis');
 
   // ─── Standings ─────────────────────────────────────
   Future<Map<String, dynamic>> getStandings(int leagueId, {int? season}) =>

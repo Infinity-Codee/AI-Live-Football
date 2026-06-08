@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     odds_api_key: str = "YOUR_ODDS_API_KEY_HERE"
     odds_api_base_url: str = "https://api.the-odds-api.com/v4"
 
+    # Google Gemini (AI textual match analysis)
+    gemini_api_key: str = "YOUR_GEMINI_API_KEY_HERE"
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/models"
+    analysis_cache_ttl: int = 600
+
     # Credits
     initial_free_credits: int = 3
     credits_per_ad: int = 1
@@ -40,16 +46,21 @@ class Settings(BaseSettings):
     # Data ingestion
     # League ids to fetch from the real API (empty list = no filter, fetch all).
     # Defaults to the leagues the app advertises in AppConstants.popularLeagues.
-    target_league_ids: list[int] = [39, 140, 307, 203, 135, 78, 61, 2, 3]
+    target_league_ids: list[int] = [
+        1, 10,           # World Cup, International Friendlies
+        2, 3,            # UEFA Champions League, Europa League
+        39, 140, 135, 78, 61,   # Premier League, La Liga, Serie A, Bundesliga, Ligue 1
+        307, 203,        # Saudi Pro League, Süper Lig
+        253, 71, 128,    # MLS, Brazil Série A, Argentina
+    ]
     # How often the scheduler refreshes live matches. Kept gentle so the free
     # API tier (100 requests/day) is not exhausted.
     live_update_minutes: int = 10
 
     # ML
-    # The shipped .pkl was bypassed because its class order produced wrong
-    # results; the reliable odds+stats engine is used by default. Flip this to
-    # True only after verifying the model's output mapping.
-    use_ml_model: bool = False
+    # Trained XGBoost model — analyzes in-play match data (feature order and
+    # class mapping fixed & verified). Pre-match falls back to the odds engine.
+    use_ml_model: bool = True
 
     class Config:
         env_file = ".env"
@@ -63,6 +74,11 @@ class Settings(BaseSettings):
     def has_odds_key(self) -> bool:
         """True when a real Odds API key has been configured."""
         return self.odds_api_key not in _PLACEHOLDER_KEYS
+
+    @property
+    def has_gemini(self) -> bool:
+        """True when a real Gemini API key has been configured."""
+        return self.gemini_api_key not in _PLACEHOLDER_KEYS and self.gemini_api_key != "YOUR_GEMINI_API_KEY_HERE"
 
     @property
     def current_season(self) -> int:

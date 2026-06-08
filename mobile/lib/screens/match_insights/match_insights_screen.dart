@@ -9,6 +9,7 @@ import '../../config/theme.dart';
 import '../../config/app_strings.dart';
 import '../../models/match.dart';
 import '../../providers/prediction_provider.dart';
+import '../../services/api_service.dart';
 import 'widgets/momentum_chart.dart';
 import 'widgets/probability_gauge.dart';
 import 'widgets/stats_comparison.dart';
@@ -23,7 +24,11 @@ class MatchInsightsScreen extends StatefulWidget {
 }
 
 class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
+  final ApiService _api = ApiService();
   Timer? _refreshTimer;
+  String? _analysisEn;
+  String? _analysisTr;
+  bool _analysisLoading = false;
 
   @override
   void initState() {
@@ -43,6 +48,21 @@ class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
       context.read<PredictionProvider>().fetchLivePrediction(widget.match.id);
     }
     _startRefreshTimer();
+    _fetchAnalysis();
+  }
+
+  Future<void> _fetchAnalysis() async {
+    setState(() => _analysisLoading = true);
+    try {
+      final d = await _api.getMatchAnalysis(widget.match.id);
+      if (d['available'] == true) {
+        _analysisEn = (d['en'] ?? '').toString();
+        _analysisTr = (d['tr'] ?? '').toString();
+      }
+    } catch (_) {
+      // Non-critical — the analysis section just stays hidden.
+    }
+    if (mounted) setState(() => _analysisLoading = false);
   }
 
   void _startRefreshTimer() {
@@ -278,9 +298,77 @@ class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
               const SizedBox(height: 12),
               StatsComparison(stats: pred.stats!),
             ],
+            const SizedBox(height: 24),
+            _buildAiAnalysis(),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildAiAnalysis() {
+    final text = LocaleController.instance.isTurkish ? _analysisTr : _analysisEn;
+    if (_analysisLoading) {
+      return _aiCard(
+        Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(tr('insights.aiLoading'),
+                  style: const TextStyle(color: AppTheme.greyLight)),
+            ),
+          ],
+        ),
+      );
+    }
+    if (text == null || text.isEmpty) return const SizedBox.shrink();
+    return _aiCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 16, color: AppTheme.primary),
+              const SizedBox(width: 6),
+              Text(tr('insights.aiAnalysis'),
+                  style: const TextStyle(
+                      color: AppTheme.primary, fontSize: 13, fontWeight: FontWeight.w700)),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.15),
+                  borderRadius: AppTheme.radiusSm,
+                ),
+                child: const Text('Gemini',
+                    style: TextStyle(
+                        color: AppTheme.primary, fontSize: 10, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(text,
+              style: const TextStyle(color: AppTheme.white, height: 1.5, fontSize: 13.5)),
+        ],
+      ),
+    );
+  }
+
+  Widget _aiCard(Widget child) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.bgCard,
+        borderRadius: AppTheme.radiusLg,
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+      ),
+      child: child,
     );
   }
 

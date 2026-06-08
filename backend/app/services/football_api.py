@@ -168,9 +168,19 @@ class FootballApiService:
         }
 
     async def fetch_standings(self, league_id: int, season: int | None = None) -> list[dict]:
-        """Fetch league standings (defaults to the current season)."""
+        """
+        Fetch league standings. In the off-season the current season's table can
+        be empty, so fall back to the previous season (which still has the final
+        table) rather than showing nothing.
+        """
         if season is None:
             season = settings.current_season
+        result = await self._standings_for_season(league_id, season)
+        if not result:
+            result = await self._standings_for_season(league_id, season - 1)
+        return result
+
+    async def _standings_for_season(self, league_id: int, season: int) -> list[dict]:
         data = await self._request("standings", {
             "league": league_id,
             "season": season,

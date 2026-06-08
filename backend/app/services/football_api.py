@@ -99,8 +99,8 @@ class FootballApiService:
         if len(response) < 2:
             return stats
 
-        for team_stats in response:
-            is_home = response.index(team_stats) == 0
+        for i, team_stats in enumerate(response):
+            is_home = i == 0
             prefix = "home" if is_home else "away"
 
             # Initialize dict for this team's extra stats

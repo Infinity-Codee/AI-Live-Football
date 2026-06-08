@@ -1,20 +1,17 @@
 /// App-wide constants
 
-import 'package:flutter/foundation.dart';
-
 class AppConstants {
-  /// Backend base URL, resolved per platform so it works out of the box:
-  ///   • Android emulator → 10.0.2.2 (the host machine, not the emulator)
-  ///   • iOS simulator / macOS / web / desktop → localhost
-  ///   • Physical device / deployed server → pass it at build time:
-  ///       flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api
+  /// Backend base URL. Defaults to the deployed cloud server so the app works
+  /// anywhere out of the box (and a stray build can never point at localhost).
+  /// For local development, override at build time:
+  ///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api
+  static const String _cloudBaseUrl =
+      'https://footai-backend-tuymd.ondigitalocean.app/api';
+
   static String get baseUrl {
     const override = String.fromEnvironment('API_BASE_URL');
     if (override.isNotEmpty) return override;
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000/api';
-    }
-    return 'http://localhost:8000/api';
+    return _cloudBaseUrl;
   }
 
   // Cache/refresh intervals

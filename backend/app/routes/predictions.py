@@ -83,13 +83,15 @@ async def get_live_prediction(match_id: int, db: AsyncSession = Depends(get_db))
             match.score_away = detail["score_away"]
             match.is_live = detail["is_live"]
 
-        # Fetch latest live odds and align them via fuzzy search
-        live_odds = await odds_api.fetch_soccer_odds()
-        matched_odds = odds_api.match_odds_to_teams(live_odds, match.home_team, match.away_team)
-        if matched_odds:
-            match.odd_home = matched_odds["odd_home"]
-            match.odd_draw = matched_odds["odd_draw"]
-            match.odd_away = matched_odds["odd_away"]
+        # Fetch latest live odds (only when an odds key is configured — avoids
+        # wasted failing round-trips on every prediction).
+        if settings.has_odds_key:
+            live_odds = await odds_api.fetch_soccer_odds()
+            matched_odds = odds_api.match_odds_to_teams(live_odds, match.home_team, match.away_team)
+            if matched_odds:
+                match.odd_home = matched_odds["odd_home"]
+                match.odd_draw = matched_odds["odd_draw"]
+                match.odd_away = matched_odds["odd_away"]
 
         match.shots_home = stats["shots_home"]
         match.shots_away = stats["shots_away"]

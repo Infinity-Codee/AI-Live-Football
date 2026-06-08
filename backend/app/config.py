@@ -54,8 +54,8 @@ class Settings(BaseSettings):
         253, 71, 128,    # MLS, Brazil Série A, Argentina
     ]
     # How often the scheduler refreshes live matches. Kept gentle so the free
-    # API tier (100 requests/day) is not exhausted.
-    live_update_minutes: int = 10
+    # API tier (100 requests/day) is not exhausted during a long live window.
+    live_update_minutes: int = 30
 
     # ML
     # Trained XGBoost model — analyzes in-play match data (feature order and

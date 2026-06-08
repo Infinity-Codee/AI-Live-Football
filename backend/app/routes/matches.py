@@ -3,6 +3,7 @@ Matches routes — today's matches, match details, live stats.
 """
 
 import datetime
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,7 @@ from app.services.cache_service import cache
 from app.services.football_api import football_api
 from app.config import settings
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/matches", tags=["Matches"])
 
 
@@ -147,4 +149,7 @@ async def get_live_stats(match_id: int, db: AsyncSession = Depends(get_db)):
         await cache.set(cache_key, response, 60)  # Cache 1 minute
         return response
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"API error: {str(e)}")
+        # On API failure (quota/timeout) serve the last-known DB data instead of
+        # a 502, so the match screen still renders rather than showing an error.
+        logger.warning(f"live-stats API failed for {match.fixture_id}, serving last-known: {e}")
+        return match.to_dict()

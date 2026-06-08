@@ -97,13 +97,22 @@ class FootballApiService:
         logger.info(f"📡 Fetched {len(matches)} matches for {target_date}")
         return matches
 
-    async def fetch_live_stats(self, fixture_id: int) -> dict:
+    async def fetch_live_stats(self, fixture_id: int) -> dict | None:
         """
         Fetch live statistics for a specific match.
-        Returns: {shots_home, shots_away, corners_home, corners_away, ...}
+        Returns {shots_home, shots_away, corners_home, corners_away, ...} when the
+        API has real per-team stats, or ``None`` when none are available (quota
+        exhausted, mock/seeded fixture, or a match that hasn't kicked off). Callers
+        must treat ``None`` as "keep last-known values" and NOT overwrite the DB
+        with zeros — otherwise seeded/real stats get wiped.
         """
         data = await self._request("fixtures/statistics", {"fixture": fixture_id})
         response = data.get("response", [])
+
+        # No real per-team statistics available — signal "no data" so callers
+        # don't clobber existing values.
+        if len(response) < 2:
+            return None
 
         stats = {
             "shots_home": 0,
@@ -114,9 +123,6 @@ class FootballApiService:
             "red_cards_away": 0,
             "extra": {},
         }
-
-        if len(response) < 2:
-            return stats
 
         for i, team_stats in enumerate(response):
             is_home = i == 0

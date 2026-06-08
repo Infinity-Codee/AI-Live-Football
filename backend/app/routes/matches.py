@@ -125,13 +125,15 @@ async def get_live_stats(match_id: int, db: AsyncSession = Depends(get_db)):
 
     try:
         stats = await football_api.fetch_live_stats(match.fixture_id)
-        # Update match in DB
-        match.shots_home = stats["shots_home"]
-        match.shots_away = stats["shots_away"]
-        match.corners_home = stats["corners_home"]
-        match.corners_away = stats["corners_away"]
-        match.red_cards_home = stats["red_cards_home"]
-        match.red_cards_away = stats["red_cards_away"]
+        # Only overwrite when the API actually returned stats — otherwise keep the
+        # last-known (or seeded) values instead of zeroing them out.
+        if stats:
+            match.shots_home = stats["shots_home"]
+            match.shots_away = stats["shots_away"]
+            match.corners_home = stats["corners_home"]
+            match.corners_away = stats["corners_away"]
+            match.red_cards_home = stats["red_cards_home"]
+            match.red_cards_away = stats["red_cards_away"]
 
         # Also update status
         detail = await football_api.fetch_fixture_detail(match.fixture_id)

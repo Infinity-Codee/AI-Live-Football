@@ -123,14 +123,16 @@ async def update_live_matches():
                         if detail["status"] in {"FT", "AET", "PEN"}:
                             match.is_live = False
 
-                    # Fetch live stats
+                    # Fetch live stats — only overwrite when real stats came back,
+                    # so seeded/last-known values aren't zeroed when the API has none.
                     stats = await football_api.fetch_live_stats(match.fixture_id)
-                    match.shots_home = stats["shots_home"]
-                    match.shots_away = stats["shots_away"]
-                    match.corners_home = stats["corners_home"]
-                    match.corners_away = stats["corners_away"]
-                    match.red_cards_home = stats["red_cards_home"]
-                    match.red_cards_away = stats["red_cards_away"]
+                    if stats:
+                        match.shots_home = stats["shots_home"]
+                        match.shots_away = stats["shots_away"]
+                        match.corners_home = stats["corners_home"]
+                        match.corners_away = stats["corners_away"]
+                        match.red_cards_home = stats["red_cards_home"]
+                        match.red_cards_away = stats["red_cards_away"]
 
                     # Invalidate cache for this match
                     await cache.delete(f"prediction:{match.fixture_id}")

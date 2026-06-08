@@ -93,12 +93,13 @@ async def get_live_prediction(match_id: int, db: AsyncSession = Depends(get_db))
                 match.odd_draw = matched_odds["odd_draw"]
                 match.odd_away = matched_odds["odd_away"]
 
-        match.shots_home = stats["shots_home"]
-        match.shots_away = stats["shots_away"]
-        match.corners_home = stats["corners_home"]
-        match.corners_away = stats["corners_away"]
-        match.red_cards_home = stats["red_cards_home"]
-        match.red_cards_away = stats["red_cards_away"]
+        if stats:
+            match.shots_home = stats["shots_home"]
+            match.shots_away = stats["shots_away"]
+            match.corners_home = stats["corners_home"]
+            match.corners_away = stats["corners_away"]
+            match.red_cards_home = stats["red_cards_home"]
+            match.red_cards_away = stats["red_cards_away"]
         match.extra_stats = stats.get("extra", {})
         await db.commit()
     except Exception:

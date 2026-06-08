@@ -32,8 +32,16 @@ async def get_standings(league_id: int, season: int | None = None):
         # API quota is temporarily exhausted) so the next request retries.
         if standings:
             await cache.set(cache_key, standings, 3600)  # Cache 1 hour
-        return {"standings": standings}
+            return {"standings": standings}
+        # Live fetch came back empty (quota exhausted, or off-season with no
+        # table). Fall back to sample tables so the screen is never blank.
+        mock = get_mock_standings(league_id)
+        return {"standings": mock, "demo": True} if mock else {"standings": []}
     except HTTPException:
         raise
     except Exception as e:
+        # On any API error, still try to serve sample tables rather than 502.
+        mock = get_mock_standings(league_id)
+        if mock:
+            return {"standings": mock, "demo": True}
         raise HTTPException(status_code=502, detail=f"API error: {str(e)}")

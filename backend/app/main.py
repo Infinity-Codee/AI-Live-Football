@@ -59,6 +59,22 @@ async def lifespan(app: FastAPI):
             await daily_sync()
         except Exception as e:
             logger.warning(f"⚠️ Initial sync failed: {e}")
+
+        # Safety net: if no real matches could be fetched (daily API quota
+        # exhausted, or genuinely no fixtures today), seed sample matches so the
+        # app is never empty. Real matches replace these on the next sync.
+        try:
+            from sqlalchemy import select, func
+            from app.models.match import Match
+            from app.models.database import async_session
+            async with async_session() as db:
+                count = (await db.execute(select(func.count(Match.id)))).scalar() or 0
+            if count == 0:
+                from app.seed_mock_data import seed_mock_data
+                await seed_mock_data()
+                logger.info("📦 No live matches available — seeded sample data as a fallback")
+        except Exception as e:
+            logger.warning(f"⚠️ Fallback seed failed: {e}")
     else:
         # ── DEMO mode: no key → seed sample matches so the app is browsable ─
         logger.info("📦 DEMO mode (no API key) — serving clearly-labelled sample data")

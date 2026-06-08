@@ -47,11 +47,25 @@ class Settings(BaseSettings):
     # League ids to fetch from the real API (empty list = no filter, fetch all).
     # Defaults to the leagues the app advertises in AppConstants.popularLeagues.
     target_league_ids: list[int] = [
+        # ── International / national teams ──
         1, 10,           # World Cup, International Friendlies
-        2, 3,            # UEFA Champions League, Europa League
+        4, 5, 6, 9,      # Euro, UEFA Nations League, Africa Cup, Copa America
+        880, 1206, 849,  # WC Women Qual (Europe), CONMEBOL Nations League Women, Baltic Cup
+        24, 893,         # ASEAN Championship, UEFA U19 Championship Qualification
+        # ── Continental clubs ──
+        2, 3, 848,       # UEFA Champions League, Europa League, Conference League
+        13, 11, 15,      # Copa Libertadores, Sudamericana, FIFA Club World Cup
+        # ── Top domestic (resume Aug; kept so they appear automatically) ──
         39, 140, 135, 78, 61,   # Premier League, La Liga, Serie A, Bundesliga, Ligue 1
-        307, 203,        # Saudi Pro League, Süper Lig
+        88, 94, 144, 179,       # Eredivisie, Primeira Liga, Belgian Pro, Scottish Prem
+        203, 307,               # Süper Lig, Saudi Pro League
+        40, 141, 72,            # Championship (ENG), Segunda (ESP), Série B (BRA)
+        # ── In-season now (summer calendar) / playing this week ──
         253, 71, 128,    # MLS, Brazil Série A, Argentina
+        113, 103,        # Allsvenskan (SWE), Eliteserien (NOR)
+        114, 115, 1087, 246,   # Superettan, Svenska Cupen, Ykkösliiga, Suomen Cup
+        200, 333, 479,   # Botola Pro (MAR), Ukraine Premier League, Canadian Premier League
+        291, 402, 598, 401, 968,  # Azadegan (IRN), Sudan, Mali, Zimbabwe, Gabon top divisions
     ]
     # How often the scheduler refreshes live matches. Kept gentle so the free
     # API tier (100 requests/day) is not exhausted during a long live window.

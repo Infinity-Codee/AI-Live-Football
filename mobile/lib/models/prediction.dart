@@ -44,6 +44,22 @@ class PredictionModel {
   String get homePercent => '${(homeWinProb * 100).toStringAsFixed(1)}%';
   String get drawPercent => '${(drawProb * 100).toStringAsFixed(1)}%';
   String get awayPercent => '${(awayWinProb * 100).toStringAsFixed(1)}%';
+
+  /// True only when the data source actually provided match stats. Many
+  /// friendlies / lower-tier matches have no coverage (all zeros), so we hide
+  /// the stats section in that case instead of showing an empty all-zero panel.
+  bool get hasStatsData {
+    final s = stats;
+    if (s == null) return false;
+    const keys = [
+      'shots_home', 'shots_away', 'corners_home', 'corners_away',
+      'red_cards_home', 'red_cards_away',
+    ];
+    final anyCore = keys.any((k) => ((s[k] ?? 0) as num) > 0);
+    final extra = s['extra'];
+    final anyExtra = extra is Map && extra.isNotEmpty;
+    return anyCore || anyExtra;
+  }
 }
 
 /// A single point in the momentum timeline.

@@ -293,7 +293,7 @@ class _MatchInsightsScreenState extends State<MatchInsightsScreen> {
               MomentumChart(history: provider.history),
               const SizedBox(height: 24),
             ],
-            if (pred.stats != null) ...[
+            if (pred.hasStatsData) ...[
               _buildSectionTitle(tr('insights.statistics')),
               const SizedBox(height: 12),
               StatsComparison(stats: pred.stats!),

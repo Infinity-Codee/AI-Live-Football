@@ -28,7 +28,10 @@ async def get_standings(league_id: int, season: int | None = None):
 
     try:
         standings = await football_api.fetch_standings(league_id, season)
-        await cache.set(cache_key, standings, 3600)  # Cache 1 hour
+        # Only cache real data — never cache an empty result (e.g. when the daily
+        # API quota is temporarily exhausted) so the next request retries.
+        if standings:
+            await cache.set(cache_key, standings, 3600)  # Cache 1 hour
         return {"standings": standings}
     except HTTPException:
         raise

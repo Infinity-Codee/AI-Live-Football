@@ -29,35 +29,71 @@ def _status_label(match) -> str:
     return "UPCOMING (not started)"
 
 
-def _build_prompt(match) -> str:
-    return (
-        "You are a professional football analyst. Analyze the match below using "
-        "ONLY the given data and respond with JSON ONLY.\n\n"
-        f"League: {match.league_name}\n"
-        f"Match: {match.home_team} (home) vs {match.away_team} (away)\n"
-        f"Status: {_status_label(match)}\n"
-        f"Score: {match.score_home} - {match.score_away}\n"
-        f"Shots: {match.shots_home} - {match.shots_away}\n"
-        f"Corners: {match.corners_home} - {match.corners_away}\n"
-        f"Red cards: {match.red_cards_home} - {match.red_cards_away}\n\n"
+def _build_prompt(match, prediction=None) -> str:
+    lines = [
+        "You are a professional football analyst. Using ONLY the data below, write a "
+        "grounded analysis and respond with JSON ONLY.",
+        "",
+        f"League: {match.league_name}",
+        f"Match: {match.home_team} (home) vs {match.away_team} (away)",
+        f"Status: {_status_label(match)}",
+        f"Score: {match.score_home} - {match.score_away}",
+    ]
+
+    has_stats = any([
+        match.shots_home, match.shots_away, match.corners_home,
+        match.corners_away, match.red_cards_home, match.red_cards_away,
+    ])
+    if has_stats:
+        lines.append(f"Shots: {match.shots_home} - {match.shots_away}")
+        lines.append(f"Corners: {match.corners_home} - {match.corners_away}")
+        lines.append(f"Red cards: {match.red_cards_home} - {match.red_cards_away}")
+        extra = match.extra_stats or {}
+        home_x, away_x = extra.get("home") or {}, extra.get("away") or {}
+        if home_x.get("possession") or away_x.get("possession"):
+            lines.append(
+                f"Possession: {home_x.get('possession', '-')} - {away_x.get('possession', '-')}"
+            )
+    else:
+        lines.append("Detailed stats (shots/corners) are NOT available for this match.")
+
+    if match.odd_home and match.odd_home > 0:
+        lines.append(
+            f"Pre-match odds: home {match.odd_home}, draw {match.odd_draw}, away {match.odd_away}"
+        )
+
+    if prediction:
+        lines.append(
+            "Our AI model's prediction — "
+            f"home win {prediction['home_win_prob'] * 100:.0f}%, "
+            f"draw {prediction['draw_prob'] * 100:.0f}%, "
+            f"away win {prediction['away_win_prob'] * 100:.0f}%."
+        )
+
+    lines.append("")
+    lines.append(
         "Return JSON with exactly these keys:\n"
-        '  "en": a concise 2-sentence tactical analysis in ENGLISH (who is on top, '
-        "why, and the likely outcome),\n"
+        '  "en": 2 concise sentences in ENGLISH — state who is favoured and WHY '
+        "(grounded in the score, game state, and the model's prediction), then the "
+        "likely outcome. If detailed stats are unavailable, reason from the score and "
+        "game state and do NOT invent stats.\n"
         '  "tr": the SAME analysis in TURKISH.\n'
-        "Be specific to the numbers above. No markdown, JSON only."
+        "Be specific and consistent with the model's prediction. No markdown, JSON only."
     )
+    return "\n".join(lines)
 
 
-async def analyze_match(match) -> dict | None:
+async def analyze_match(match, prediction=None) -> dict | None:
     """
-    Return {"ar": "...", "tr": "..."} for the match, or None if Gemini is not
+    Return {"en": "...", "tr": "..."} for the match, or None if Gemini is not
     configured or the request fails (caller then simply omits the analysis).
+    The optional `prediction` (model probabilities) grounds the narrative.
     """
     if not settings.has_gemini:
         return None
 
     body = {
-        "contents": [{"parts": [{"text": _build_prompt(match)}]}],
+        "contents": [{"parts": [{"text": _build_prompt(match, prediction)}]}],
         "generationConfig": {
             "responseMimeType": "application/json",
             "temperature": 0.4,

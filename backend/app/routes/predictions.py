@@ -203,7 +203,31 @@ async def get_ai_analysis(match_id: int, db: AsyncSession = Depends(get_db)):
     if cached:
         return cached
 
-    analysis = await analyze_match(match)
+    # Ground Gemini's narrative in the model's current prediction (so the text
+    # explains/justifies the numbers instead of guessing independently).
+    elapsed_for_model = match.elapsed or 0
+    if match.status == "ET":
+        elapsed_for_model = 0
+    elif elapsed_for_model > 90:
+        elapsed_for_model = 90
+    features = build_features({
+        "elapsed": 0 if match.status in ("NS", "TBD") else elapsed_for_model,
+        "tournament_type": match.tournament_type,
+        "odd_home": match.odd_home,
+        "odd_draw": match.odd_draw,
+        "odd_away": match.odd_away,
+        "score_home": match.score_home,
+        "score_away": match.score_away,
+        "shots_home": match.shots_home,
+        "shots_away": match.shots_away,
+        "corners_home": match.corners_home,
+        "corners_away": match.corners_away,
+        "red_cards_home": match.red_cards_home,
+        "red_cards_away": match.red_cards_away,
+    })
+    prediction = predict(features)
+
+    analysis = await analyze_match(match, prediction)
     response = {
         "match_id": match_id,
         "available": analysis is not None,

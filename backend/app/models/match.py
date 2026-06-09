@@ -77,7 +77,10 @@ class Match(Base):
             "elapsed": self.elapsed,
             "score_home": self.score_home,
             "score_away": self.score_away,
-            "kick_off": self.kick_off.isoformat() if self.kick_off else None,
+            # Stamp the stored (naive UTC) kick-off with an explicit UTC marker so
+            # clients parse it as UTC and convert to local time correctly. Without
+            # the marker the app reads UTC as local and shows times 3h early.
+            "kick_off": self.kick_off.replace(tzinfo=datetime.timezone.utc).isoformat() if self.kick_off else None,
             "odd_home": self.odd_home,
             "odd_draw": self.odd_draw,
             "odd_away": self.odd_away,

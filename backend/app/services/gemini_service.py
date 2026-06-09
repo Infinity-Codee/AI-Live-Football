@@ -108,15 +108,17 @@ async def analyze_match(match, prediction=None) -> dict | None:
         f"?key={settings.gemini_api_key}"
     )
 
-    # The free tier intermittently returns 503/404 under load — retry with backoff.
-    attempts = 4
+    # The free tier occasionally returns a transient 503/404 — one quick retry
+    # catches most blips while keeping the total well under the client's timeout
+    # (worst case ~2x12s + 1.5s ≈ 25s, vs the app's 40s analysis budget).
+    attempts = 2
     for attempt in range(attempts):
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=12) as client:
                 resp = await client.post(url, json=body)
             if resp.status_code in _TRANSIENT:
                 logger.info(f"Gemini {resp.status_code} (transient), retry {attempt + 1}/{attempts}")
-                await asyncio.sleep(1.2 * (attempt + 1))
+                await asyncio.sleep(1.5)
                 continue
             resp.raise_for_status()
             data = resp.json()
@@ -129,5 +131,5 @@ async def analyze_match(match, prediction=None) -> dict | None:
             return None
         except Exception as e:
             logger.warning(f"Gemini analysis failed (attempt {attempt + 1}): {e}")
-            await asyncio.sleep(1.0 * (attempt + 1))
+            await asyncio.sleep(1.5)
     return None

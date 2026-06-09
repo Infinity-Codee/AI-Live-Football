@@ -14,8 +14,8 @@ class ApiService {
   // Fail fast instead of spinning forever when the backend is unreachable.
   static const Duration _timeout = Duration(seconds: 12);
 
-  Future<Map<String, dynamic>> _get(String path) async {
-    final resp = await http.get(Uri.parse('$_base$path')).timeout(_timeout);
+  Future<Map<String, dynamic>> _get(String path, {Duration? timeout}) async {
+    final resp = await http.get(Uri.parse('$_base$path')).timeout(timeout ?? _timeout);
     if (resp.statusCode == 200) {
       return jsonDecode(resp.body);
     }
@@ -34,8 +34,10 @@ class ApiService {
       _get('/predictions/$matchId');
   Future<Map<String, dynamic>> getPredictionHistory(int matchId) =>
       _get('/predictions/$matchId/history');
+  // Gemini analysis is a slow AI call (cold ≈ a few seconds) — give it a much
+  // longer budget than data calls so it doesn't get cut off mid-generation.
   Future<Map<String, dynamic>> getMatchAnalysis(int matchId) =>
-      _get('/predictions/$matchId/analysis');
+      _get('/predictions/$matchId/analysis', timeout: const Duration(seconds: 40));
 
   // ─── Standings ─────────────────────────────────────
   Future<Map<String, dynamic>> getStandings(int leagueId, {int? season}) =>

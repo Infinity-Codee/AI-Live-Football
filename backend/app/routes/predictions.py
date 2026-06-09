@@ -201,7 +201,10 @@ async def get_ai_analysis(match_id: int, db: AsyncSession = Depends(get_db)):
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
 
-    cache_key = f"analysis:{match.fixture_id}:{match.score_home}-{match.score_away}:{match.elapsed}"
+    # Cache by score + status (NOT minute) so a live match stays cached between
+    # ticks — the narrative only needs to change when the score or phase changes.
+    # Keying on `elapsed` made every tap a fresh (slow) Gemini call.
+    cache_key = f"analysis:{match.fixture_id}:{match.status}:{match.score_home}-{match.score_away}"
     cached = await cache.get(cache_key)
     if cached:
         return cached

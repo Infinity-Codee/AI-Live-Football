@@ -7,7 +7,7 @@ Scheduler — automated tasks for data sync.
 
 import logging
 import datetime
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, or_, and_
 from app.models.database import async_session
 from app.models.match import Match
 from app.services.football_api import football_api, LIVE_STATUSES
@@ -15,6 +15,10 @@ from app.services.odds_api import odds_api
 from app.services.cache_service import cache
 
 logger = logging.getLogger(__name__)
+
+# Statuses that won't change again today — skip them in the live updater so we
+# only re-poll matches that are live or could still go live.
+_NO_POLL_STATUSES = ("FT", "AET", "PEN", "CANC", "ABD", "AWD", "WO", "PST", "TBD")
 
 
 async def daily_sync():
@@ -110,14 +114,24 @@ async def daily_sync():
 
 async def update_live_matches():
     """
-    Runs every 5 minutes.
-    Updates stats for all currently live matches.
+    Runs on the live-update interval. Refreshes status/score/stats for matches
+    that are live OR have just kicked off, so NS -> live -> FT transitions are
+    picked up during the day (not only at the 06:00 daily sync). Without this, a
+    match that starts after the daily sync would stay stuck on "not started".
     """
     logger.info("🔄 Updating live matches...")
     try:
         async with async_session() as db:
+            now = datetime.datetime.utcnow()
+            window_start = now - datetime.timedelta(hours=4)
             result = await db.execute(
-                select(Match).where(Match.is_live == True)  # noqa: E712
+                select(Match).where(
+                    Match.status.notin_(_NO_POLL_STATUSES),
+                    or_(
+                        Match.is_live == True,  # noqa: E712
+                        and_(Match.kick_off <= now, Match.kick_off >= window_start),
+                    ),
+                )
             )
             live_matches = result.scalars().all()
 
@@ -136,16 +150,19 @@ async def update_live_matches():
                         if detail["status"] in {"FT", "AET", "PEN"}:
                             match.is_live = False
 
-                    # Fetch live stats — only overwrite when real stats came back,
-                    # so seeded/last-known values aren't zeroed when the API has none.
-                    stats = await football_api.fetch_live_stats(match.fixture_id)
-                    if stats:
-                        match.shots_home = stats["shots_home"]
-                        match.shots_away = stats["shots_away"]
-                        match.corners_home = stats["corners_home"]
-                        match.corners_away = stats["corners_away"]
-                        match.red_cards_home = stats["red_cards_home"]
-                        match.red_cards_away = stats["red_cards_away"]
+                    # Only pull live stats for matches that are actually live now —
+                    # keeps API usage bounded (just-kicked-off NS fixtures cost a
+                    # single status call). Still guarded so a None result never
+                    # zeroes existing values.
+                    if match.is_live:
+                        stats = await football_api.fetch_live_stats(match.fixture_id)
+                        if stats:
+                            match.shots_home = stats["shots_home"]
+                            match.shots_away = stats["shots_away"]
+                            match.corners_home = stats["corners_home"]
+                            match.corners_away = stats["corners_away"]
+                            match.red_cards_home = stats["red_cards_home"]
+                            match.red_cards_away = stats["red_cards_away"]
 
                     # Invalidate cache for this match
                     await cache.delete(f"prediction:{match.fixture_id}")

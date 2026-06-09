@@ -67,9 +67,10 @@ class Settings(BaseSettings):
         200, 333, 479,   # Botola Pro (MAR), Ukraine Premier League, Canadian Premier League
         291, 402, 598, 401, 968,  # Azadegan (IRN), Sudan, Mali, Zimbabwe, Gabon top divisions
     ]
-    # How often the scheduler refreshes live matches. Kept gentle so the free
-    # API tier (100 requests/day) is not exhausted during a long live window.
-    live_update_minutes: int = 30
+    # How often the scheduler refreshes live matches (status + score + stats).
+    # 10 min keeps NS->live->FT transitions timely for the live demo; the paid
+    # Pro key (7500 req/day) handles the volume comfortably.
+    live_update_minutes: int = 10
 
     # ML
     # Trained XGBoost model — analyzes in-play match data (feature order and

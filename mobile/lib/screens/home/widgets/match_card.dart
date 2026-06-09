@@ -209,8 +209,14 @@ class MatchCard extends StatelessWidget {
 
   String _formatTime(String isoDate) {
     try {
-      final dt = DateTime.parse(isoDate).toLocal();
-      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      // Always show kick-off in Turkey time (UTC+3, no DST) regardless of the
+      // device's timezone. The backend stores times in UTC; treat the value as
+      // UTC even if the explicit marker is missing, then add Turkey's offset.
+      final hasTz =
+          isoDate.endsWith('Z') || RegExp(r'[+-]\d\d:?\d\d$').hasMatch(isoDate);
+      final utc = DateTime.parse(hasTz ? isoDate : '${isoDate}Z').toUtc();
+      final tr = utc.add(const Duration(hours: 3));
+      return '${tr.hour.toString().padLeft(2, '0')}:${tr.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return '--:--';
     }

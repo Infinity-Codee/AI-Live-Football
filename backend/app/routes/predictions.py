@@ -19,6 +19,102 @@ from app.config import settings
 router = APIRouter(prefix="/predictions", tags=["Predictions"])
 
 
+FINAL_STATUSES = {"FT", "AET", "PEN"}
+VOID_STATUSES = {"PST", "CANC", "ABD", "AWD", "WO", "SUSP", "INT"}
+SETTLED_STATUSES = FINAL_STATUSES | VOID_STATUSES
+
+
+def _probability(value: float | None) -> float:
+    return float(value or 0.0)
+
+
+def _pick_outcome(home_prob: float, draw_prob: float, away_prob: float) -> tuple[str, float]:
+    return max(
+        (
+            ("home", _probability(home_prob)),
+            ("draw", _probability(draw_prob)),
+            ("away", _probability(away_prob)),
+        ),
+        key=lambda item: item[1],
+    )
+
+
+def _actual_outcome(score_home: int | None, score_away: int | None) -> str | None:
+    if score_home is None or score_away is None:
+        return None
+    if score_home > score_away:
+        return "home"
+    if score_away > score_home:
+        return "away"
+    return "draw"
+
+
+def _settlement_score(match: Match) -> str | None:
+    if match.score_home is None or match.score_away is None:
+        return None
+    return f"{match.score_home} - {match.score_away}"
+
+
+def _result_payload(prediction: Prediction, match: Match) -> dict:
+    predicted_outcome, confidence = _pick_outcome(
+        prediction.home_win_prob,
+        prediction.draw_prob,
+        prediction.away_win_prob,
+    )
+    actual_outcome = _actual_outcome(match.score_home, match.score_away)
+    is_correct = None
+    settlement_status = "pending"
+
+    if match.status in VOID_STATUSES:
+        settlement_status = "void"
+    elif match.status in FINAL_STATUSES and actual_outcome is not None:
+        is_correct = predicted_outcome == actual_outcome
+        settlement_status = "correct" if is_correct else "wrong"
+
+    payload = prediction.to_dict()
+    payload.update(
+        {
+            "predicted_outcome": predicted_outcome,
+            "confidence": round(confidence, 4),
+            "actual_outcome": actual_outcome,
+            "settlement_status": settlement_status,
+            "settlement_score": _settlement_score(match),
+            "is_correct": is_correct,
+            "settled_at": match.kick_off.isoformat() if match.kick_off else None,
+            "match": match.to_dict(),
+        }
+    )
+    return payload
+
+
+@router.get("/results/recent")
+async def get_recent_prediction_results(
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Recent settled prediction outcomes for the mobile Results tab.
+
+    This derives settlement from existing prediction + match columns so the
+    deployed database does not need a migration before the tab can load.
+    """
+    safe_limit = max(1, min(limit, 100))
+    result = await db.execute(
+        select(Prediction, Match)
+        .join(Match, Prediction.match_id == Match.id)
+        .where(Match.status.in_(sorted(SETTLED_STATUSES)))
+        .order_by(Match.kick_off.desc(), Prediction.created_at.desc())
+        .limit(safe_limit)
+    )
+
+    return {
+        "predictions": [
+            _result_payload(prediction, match)
+            for prediction, match in result.all()
+        ],
+    }
+
+
 @router.get("/{match_id}/pre-match")
 async def get_pre_match_prediction(match_id: int, db: AsyncSession = Depends(get_db)):
     """
